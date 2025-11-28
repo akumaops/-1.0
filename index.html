@@ -1,0 +1,230 @@
+<div id="blink-overlay"></div>
+
+<div id="boss-overlay" class="hidden"></div>
+
+<div id="achievement-toast" class="hidden">
+    <div class="toast-icon">🏆</div>
+    <div class="toast-text">
+        <div class="toast-title">成就解鎖</div>
+        <div id="toast-name" class="toast-name">初入江湖</div>
+    </div>
+</div>
+
+<div id="scene-start" class="scene">
+    <div class="title-box">
+        <h1>🗡️ 浮生劍影 🛡️</h1>
+        <p>一念成仙，一念入魔</p>
+    </div>
+    <button id="start-btn" onclick="enterJianghu()">🌊 踏入江湖</button>
+</div>
+
+<div id="scene-origin" class="scene hidden">
+    <h2>🔮 天賦資質</h2>
+    <div class="karma-bar-container">
+        <div class="karma-marker"></div>
+        <div id="karma-fill" class="karma-fill"></div>
+    </div>
+    <p>初始善惡: <span id="origin-karma-val">?</span></p>
+    <p id="origin-desc">正在感應天地靈氣...</p>
+    <div id="job-selection" class="hidden">
+        <h3>選擇你的道路</h3>
+        <div id="job-options" class="button-row-vertical"></div>
+    </div>
+</div>
+
+<div id="scene-game" class="scene hidden">
+    <div id="status-panel">
+        <div class="top-row">
+            <div class="time-display">
+                <span id="year-display">第 <span id="year-val">1</span> 年</span>
+                <span id="month-display">( <span id="month-val">1</span>/12 月 )</span>
+            </div>
+            <div class="system-btns">
+                <button class="icon-btn" onclick="openAchievement()">🏆</button>
+                <button class="icon-btn" onclick="openCollection()">📚</button>
+                <button class="quit-btn" onclick="askQuit()">🚪</button>
+            </div>
+        </div>
+        
+        <div class="stat-row">
+            <span>👤 <span id="player-job">未定</span> <span id="rank">凡人</span></span>
+            <span>☯️ 善惡: <span id="karma-display">0</span></span>
+        </div>
+
+        <div class="stat-row" style="color: #e67e22; font-weight:bold;">
+            <span>⚔️ 攻擊力: <span id="atk-val">10</span></span>
+        </div>
+        
+        <div class="bar-container">
+            <div class="bar-label">血</div>
+            <div class="progress-bar-bg"><div id="hp-bar" class="progress-bar-fill hp-fill" style="width: 100%;"></div></div>
+            <div class="bar-text"><span id="hp-val">100</span>/<span id="max-hp-val">100</span></div>
+        </div>
+        <div class="bar-container">
+            <div class="bar-label">精</div>
+            <div class="progress-bar-bg"><div id="mp-bar" class="progress-bar-fill mp-fill" style="width: 100%;"></div></div>
+            <div class="bar-text"><span id="mp-val">50</span>/<span id="max-mp-val">50</span></div>
+        </div>
+        <div class="stat-row wallet-row">
+            <span>💰 錢包: <span id="money-val">0</span> 靈石</span>
+        </div>
+    </div>
+
+    <div id="main-display">
+        <div id="main-emoji">🏠</div>
+        <div id="enemy-status" class="hidden" style="font-size: 0.9rem; color: #e74c3c; margin-bottom: 5px;">
+            <span id="enemy-name">敵人</span>: <span id="enemy-hp">100</span>/<span id="enemy-max-hp">100</span>
+        </div>
+        <div id="tower-progress" class="hidden" style="font-size: 0.85rem; color: #f1c40f; margin-bottom: 5px;">
+            當前層數: <span id="floor-val">1</span> (最高: <span id="max-floor-val">1</span>) | 擊殺: <span id="kill-val">0</span>/5
+        </div>
+        <div id="main-text">你在家中休息，歲月靜好。</div>
+    </div>
+
+    <div class="control-bar">
+        <button class="control-btn" onclick="openMap()">🗺️ 地圖</button>
+        <button class="control-btn" onclick="openBag()">🎒 背包</button>
+        <button class="control-btn" onclick="openEquip()">🧢 裝備</button>
+        <button class="control-btn" onclick="toggleLog()">📜 日誌</button>
+    </div>
+    
+    <div id="action-panel">
+        <h3 id="action-title">行動</h3>
+        <div class="button-row">
+            <button id="btn-action-left" class="btn-disabled">...</button>
+            <button id="btn-action-right" class="btn-disabled">...</button>
+        </div>
+        <button id="btn-floor-select" class="hidden" onclick="openFloorSelector()" style="background:#2c3e50; margin-bottom: 5px;">🔢 選擇層數</button>
+        <button id="btn-action-main" onclick="handleMainAction()">🛏️ 休息 (回精)</button>
+    </div>
+
+    <div id="item-detail-modal" class="modal hidden" style="z-index: 150;">
+        <div class="modal-content small-modal" style="text-align: center;">
+            <h3 id="item-name">物品名稱</h3>
+            <div id="item-desc" style="color:#aaa; margin: 10px 0;">描述</div>
+            <p id="item-stats" style="color:#f39c12; font-weight:bold;">數值</p>
+            <p id="item-price" style="color:#e67e22; font-size:0.9rem; margin-bottom:10px;">價格</p>
+            <div id="item-action-container" class="button-row">
+                <button onclick="closeItemDetail()" style="background:#555;">關閉</button>
+                <button id="btn-item-action" style="background:#27ae60;">動作</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="event-modal" class="modal hidden" style="z-index: 140;">
+        <div class="modal-content small-modal" style="text-align: center;">
+            <h2 id="event-title" style="color:#f1c40f;">奇遇</h2>
+            <div id="event-emoji" style="font-size:3rem; margin:10px 0;">❓</div>
+            <p id="event-desc" style="margin-bottom:20px; line-height:1.5;">描述</p>
+            <div id="event-options" class="button-row-vertical"></div>
+        </div>
+    </div>
+
+    <div id="selector-modal" class="modal hidden" style="z-index: 115;">
+        <div class="modal-content small-modal">
+            <div class="modal-header"><span id="selector-title">選擇裝備</span><button onclick="closeSelector()" class="close-btn">❌</button></div>
+            <div id="selector-list" class="list-container"></div>
+        </div>
+    </div>
+
+    <div id="shop-modal" class="modal hidden" style="z-index: 125;">
+        <div class="modal-content">
+            <div class="modal-header"><span>城鎮交易所</span><button onclick="closeShop()" class="close-btn">❌</button></div>
+            <div class="tab-bar">
+                <button class="tab-btn active" onclick="switchShopTab('buy', this)">購買</button>
+                <button class="tab-btn" onclick="switchShopTab('sell', this)">販賣</button>
+            </div>
+            <div id="shop-money" style="text-align:right; color:#f1c40f; padding:5px; border-bottom:1px solid #444;">持有: 0 靈石</div>
+            <div class="inventory-grid" id="shop-grid"></div>
+        </div>
+    </div>
+
+    <div id="forge-modal" class="modal hidden" style="z-index: 115;">
+        <div class="modal-content">
+            <div class="modal-header"><span>鐵匠鋪</span><button onclick="closeForge()" class="close-btn">❌</button></div>
+            <p style="text-align:center; color:#888; font-size:0.85rem; margin-bottom:10px;">已知配方</p>
+            <div id="recipe-list" class="list-container"></div>
+        </div>
+    </div>
+
+    <div id="floor-modal" class="modal hidden" style="z-index: 130;">
+        <div class="modal-content small-modal" style="text-align: center;">
+            <div class="modal-header"><span>切換層數</span><button onclick="closeFloorSelector()" class="close-btn">❌</button></div>
+            <p>請輸入目標層數 (1 ~ <span id="input-max-floor">1</span>)</p>
+            <input type="number" id="floor-input" min="1" value="1" style="font-size:1.5rem; width:80px; text-align:center; margin:10px; background:#222; color:#fff; border:1px solid #555;">
+            <button onclick="confirmFloor()" style="background:#27ae60;">前往</button>
+        </div>
+    </div>
+
+    <div id="equip-modal" class="modal hidden">
+        <div class="modal-content small-modal">
+            <div class="modal-header"><span>角色裝備</span><button onclick="closeEquip()" class="close-btn">❌</button></div>
+            <div class="equip-body-container">
+                <div class="equip-grid">
+                    <div class="equip-slot head-slot" id="slot-head" onclick="handleSlotClick('head')">🧢<br>頭</div>
+                    <div class="equip-slot hand-slot" id="slot-hand" onclick="handleSlotClick('hand')">⚔️<br>武</div>
+                    <div class="equip-slot body-slot" id="slot-body" onclick="handleSlotClick('body')">👕<br>身</div>
+                    <div class="equip-slot acc-slot" id="slot-acc" onclick="handleSlotClick('acc')">💍<br>飾</div>
+                    <div class="equip-slot feet-slot" id="slot-feet" onclick="handleSlotClick('feet')">👢<br>腳</div>
+                </div>
+            </div>
+            <p style="text-align:center; color:#888; font-size:0.8rem;">點擊欄位可穿脫裝備</p>
+        </div>
+    </div>
+
+    <div id="bag-modal" class="modal hidden">
+        <div class="modal-content"><div class="modal-header"><span>背包</span><button onclick="closeBag()" class="close-btn">❌</button></div>
+            <div class="tab-bar">
+                <button class="tab-btn active" onclick="switchBagTab('equip', this)">裝備</button>
+                <button class="tab-btn" onclick="switchBagTab('use', this)">用品</button>
+                <button class="tab-btn" onclick="switchBagTab('material', this)">材料</button>
+            </div>
+            <div class="inventory-grid" id="bag-grid"></div>
+        </div>
+    </div>
+
+    <div id="collection-modal" class="modal hidden">
+        <div class="modal-content"><div class="modal-header"><span>圖鑑</span><button onclick="closeCollection()" class="close-btn">❌</button></div>
+            <div class="tab-bar wrap-tab">
+                <button class="tab-btn active" onclick="switchColTab('hand', this)">武</button>
+                <button class="tab-btn" onclick="switchColTab('head', this)">頭</button>
+                <button class="tab-btn" onclick="switchColTab('body', this)">身</button>
+                <button class="tab-btn" onclick="switchColTab('feet', this)">腳</button>
+                <button class="tab-btn" onclick="switchColTab('acc', this)">飾</button>
+                <button class="tab-btn" onclick="switchColTab('use', this)">用</button>
+                <button class="tab-btn" onclick="switchColTab('material', this)">材</button>
+                <button class="tab-btn" onclick="switchColTab('special', this)">？</button>
+            </div>
+            <div class="inventory-grid" id="collection-grid"></div>
+        </div>
+    </div>
+
+    <div id="achievement-modal" class="modal hidden">
+        <div class="modal-content"><div class="modal-header"><span>成就</span><button onclick="closeAchievement()" class="close-btn">❌</button></div><div id="achievement-list" class="list-container"></div></div>
+    </div>
+
+    <div id="confirm-modal" class="modal hidden">
+        <div class="modal-content small-modal" style="text-align: center;">
+            <h3>⚠️ 輪迴警告</h3><p>確定要結束這一世的修行嗎？</p>
+            <div class="button-row"><button onclick="closeConfirm()" style="background:#555;">取消</button><button onclick="confirmQuit()" style="background:#c0392b;">確定結束</button></div>
+        </div>
+    </div>
+    <div id="death-modal" class="modal hidden">
+        <div class="modal-content small-modal" style="text-align: center; border-color: #c0392b;">
+            <h2 style="color: #c0392b;">💀 壽元已盡</h2><p id="death-msg">...</p><button onclick="backToTitle()" style="margin-top: 20px;">回到標題</button>
+        </div>
+    </div>
+    <div id="log-modal" class="modal hidden">
+        <div class="modal-content"><div class="modal-header"><span>冒險紀錄</span><button onclick="toggleLog()" class="close-btn">❌</button></div><div id="log-content"></div></div>
+    </div>
+    <div id="map-modal" class="modal hidden">
+        <div class="modal-content small-modal"><div class="modal-header"><span>世界地圖</span><button onclick="closeMap()" class="close-btn">❌</button></div>
+            <div class="map-grid">
+                <button onclick="travelTo('home')">🏠 住家 (回血/安全)</button>
+                <button onclick="travelTo('town')">🏰 城鎮 (交易/鍛造)</button>
+                <button onclick="travelTo('emei')">🏔️ 峨眉山 (修仙/挑戰)</button>
+                <button onclick="travelTo('tower')">🗼 封魔塔 (修魔/爬塔)</button>
+            </div>
+        </div>
+    </div>
+</div>
