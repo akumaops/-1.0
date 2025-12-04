@@ -1,26 +1,121 @@
-body { background-color: #121212; color: #e0e0e0; font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; display: flex; justify-content: center; min-height: 100vh; user-select: none; }
-#blink-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: black; opacity: 0; pointer-events: none; z-index: 9999; }
-.blink-active { animation: blinkEffect 1s ease-in-out forwards; }
+/* style.css */
 
-#boss-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(circle, transparent 50%, rgba(192, 57, 43, 0.4) 100%); z-index: 9000; pointer-events: none; animation: bossPulse 3s infinite; }
-@keyframes bossPulse { 0% { opacity: 0.2; transform: scale(1); } 50% { opacity: 0.8; transform: scale(1.05); } 100% { opacity: 0.2; transform: scale(1); } }
+body { 
+    background-color: #121212; 
+    color: #e0e0e0; 
+    font-family: 'Segoe UI', Tahoma, sans-serif; 
+    margin: 0; 
+    display: flex; 
+    justify-content: center; /* 水平置中 */
+    /* 使用 100dvh (動態視口高度) 解決手機網址列遮擋問題 */
+    height: 100dvh; 
+    width: 100vw;
+    overflow: hidden; /* 禁止整個頁面捲動 */
+    user-select: none; 
+    -webkit-user-select: none; 
+}
 
-#achievement-toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(39, 174, 96, 0.9); color: white; padding: 15px 25px; border-radius: 50px; display: flex; align-items: center; gap: 10px; z-index: 10000; box-shadow: 0 5px 15px rgba(0,0,0,0.5); animation: slideDown 4s forwards; pointer-events: none; }
-.toast-icon { font-size: 2rem; }
-.toast-text { display: flex; flex-direction: column; }
-.toast-title { font-size: 0.8rem; opacity: 0.8; }
-.toast-name { font-size: 1.1rem; font-weight: bold; }
-@keyframes slideDown { 0% { top: -100px; opacity: 0; } 10% { top: 20px; opacity: 1; } 90% { top: 20px; opacity: 1; } 100% { top: -100px; opacity: 0; } }
+/* 確保場景填滿螢幕，但在電腦上限制最大寬度 */
+.scene { 
+    width: 100%; 
+    max-width: 480px; /* 電腦版限制寬度 */
+    padding: 10px; 
+    box-sizing: border-box; 
+    display: flex; 
+    flex-direction: column; 
+    height: 100dvh; 
+    background: #2b2b2b; 
+    position: relative; 
+    overflow: hidden; 
+    /* 在電腦上增加陰影，讓它看起來更像一個獨立視窗 */
+    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+}
 
-@keyframes blinkEffect { 0% { opacity: 0; } 50% { opacity: 1; } 100% { opacity: 0; } }
-.scene { width: 100%; max-width: 480px; padding: 15px; box-sizing: border-box; display: flex; flex-direction: column; height: 100vh; background: #2b2b2b; position: relative; overflow: hidden; }
 .hidden { display: none !important; }
 
+/* --- 特效層與彈出視窗修正 (確保電腦版也只覆蓋遊戲區域) --- */
+
+#boss-overlay { 
+    position: fixed; 
+    top: 0; 
+    left: 50%; /* 置中定位 */
+    transform: translateX(-50%); /* 置中修正 */
+    width: 100%; 
+    max-width: 480px; /* 限制寬度 */
+    height: 100%; 
+    background: radial-gradient(circle, transparent 50%, rgba(192, 57, 43, 0.4) 100%); 
+    z-index: 9000; 
+    pointer-events: none; 
+    animation: bossPulse 3s infinite; 
+}
+
+#blink-overlay { 
+    position: fixed; 
+    top: 0; 
+    left: 50%; 
+    transform: translateX(-50%);
+    width: 100%; 
+    max-width: 480px;
+    height: 100%; 
+    background: black; 
+    opacity: 0; 
+    pointer-events: none; 
+    z-index: 9999; 
+}
+
+/* 彈出視窗 (Modal) 修正 */
+.modal { 
+    position: fixed; 
+    top: 0; 
+    left: 50%; 
+    transform: translateX(-50%);
+    width: 100%; 
+    max-width: 480px;
+    height: 100%; 
+    background: rgba(0,0,0,0.85); 
+    z-index: 100; 
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    padding: 20px; 
+    box-sizing: border-box; 
+}
+
+/* 成就通知修正 */
+#achievement-toast { 
+    position: fixed; 
+    top: 20px; 
+    left: 50%; 
+    transform: translateX(-50%); 
+    background: rgba(39, 174, 96, 0.9); 
+    color: white; 
+    padding: 15px 25px; 
+    border-radius: 50px; 
+    display: flex; 
+    align-items: center; 
+    gap: 10px; 
+    z-index: 10000; 
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5); 
+    animation: slideDown 4s forwards; 
+    pointer-events: none; 
+    width: max-content; 
+    max-width: 90%; /* 避免太寬 */
+}
+
+/* --- 動畫設定 --- */
+
+.blink-active { animation: blinkEffect 1s ease-in-out forwards; }
+
+@keyframes bossPulse { 0% { opacity: 0.2; transform: translateX(-50%) scale(1); } 50% { opacity: 0.8; transform: translateX(-50%) scale(1.05); } 100% { opacity: 0.2; transform: translateX(-50%) scale(1); } }
+@keyframes slideDown { 0% { top: -100px; opacity: 0; } 10% { top: 20px; opacity: 1; } 90% { top: 20px; opacity: 1; } 100% { top: -100px; opacity: 0; } }
+@keyframes blinkEffect { 0% { opacity: 0; } 50% { opacity: 1; } 100% { opacity: 0; } }
 @keyframes shakeVertical { 0%, 100% { transform: translateY(0); } 25% { transform: translateY(-5px); } 75% { transform: translateY(5px); } }
 @keyframes shakeHorizontal { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+
 .shake-v { animation: shakeVertical 0.2s ease-in-out; }
 .shake-h { animation: shakeHorizontal 0.2s ease-in-out; }
 
+/* --- 稀有度框線 --- */
 .q-gray { border: 1px solid #7f8c8d !important; box-shadow: inset 0 0 5px rgba(127, 140, 141, 0.3); }
 .q-blue { border: 1px solid #3498db !important; box-shadow: inset 0 0 5px rgba(52, 152, 219, 0.5); }
 .q-purple { border: 1px solid #9b59b6 !important; box-shadow: inset 0 0 5px rgba(155, 89, 182, 0.5); }
@@ -28,10 +123,13 @@ body { background-color: #121212; color: #e0e0e0; font-family: 'Segoe UI', Tahom
 .q-red { border: 1px solid #c0392b !important; box-shadow: inset 0 0 10px rgba(192, 57, 43, 0.8); animation: pulseRed 2s infinite; }
 @keyframes pulseRed { 0% { box-shadow: inset 0 0 5px #c0392b; } 50% { box-shadow: inset 0 0 15px #e74c3c; } 100% { box-shadow: inset 0 0 5px #c0392b; } }
 
+/* --- 標題與按鈕 --- */
 #scene-start { justify-content: center; text-align: center; }
 .title-box h1 { font-size: 2.2rem; margin-bottom: 10px; color: #f1c40f; }
 #start-btn { padding: 18px; font-size: 1.3rem; background: #e67e22; margin-top: 40px; color: white; border: none; border-radius: 8px; }
+#load-btn { padding: 12px; font-size: 1.1rem; border: none; border-radius: 8px; color: white; cursor: pointer; }
 
+/* --- 狀態條與面板 --- */
 .karma-bar-container { position: relative; width: 100%; height: 20px; background: #444; border-radius: 10px; margin: 20px 0; overflow: hidden; }
 .karma-marker { position: absolute; left: 50%; width: 2px; height: 100%; background: #fff; z-index: 2; transform: translateX(-50%); }
 .karma-fill { position: absolute; height: 100%; top: 0; left: 50%; width: 0%; transition: width 1.5s ease-out, left 1.5s ease-out; z-index: 1; }
@@ -41,7 +139,7 @@ body { background-color: #121212; color: #e0e0e0; font-family: 'Segoe UI', Tahom
 #year-val { color: #f39c12; font-weight: bold; }
 .system-btns { display: flex; gap: 5px; }
 .icon-btn { width: auto; padding: 4px 8px; background: #444; border-radius: 4px; font-size: 1rem; }
-.quit-btn { width: auto; padding: 4px 8px; background: #c0392b; border-radius: 4px; font-size: 1rem; }
+.quit-btn { width: auto; padding: 4px 8px; background: #34495e; border-radius: 4px; font-size: 1rem; }
 
 .karma-neutral { color: #aaa; }
 .karma-good { color: #3498db; font-weight: bold; text-shadow: 0 0 5px rgba(52, 152, 219, 0.5); }
@@ -57,11 +155,12 @@ body { background-color: #121212; color: #e0e0e0; font-family: 'Segoe UI', Tahom
 .bar-text { width: 65px; text-align: right; color: #aaa; font-size: 0.75rem; }
 .wallet-row { margin-top: 5px; color: #f1c40f; font-weight: bold; border-bottom: 1px solid #444; padding-bottom: 5px; }
 
-#main-display { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; border: 1px dashed #555; background: #222; margin-bottom: 10px; border-radius: 8px; }
+/* --- 主顯示區 --- */
+#main-display { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; border: 1px dashed #555; background: #222; margin-bottom: 10px; border-radius: 8px; overflow: hidden; position: relative; }
 #main-emoji { font-size: 3.5rem; margin-bottom: 10px; }
 #main-text { font-size: 1rem; padding: 0 10px; line-height: 1.4; }
 
-.control-bar { display: flex; gap: 5px; margin-bottom: 10px; }
+.control-bar { display: flex; gap: 5px; margin-bottom: 10px; flex-shrink: 0; }
 .control-btn { flex: 1; padding: 10px; background: #555; font-size: 0.9rem; border-radius: 4px; }
 
 button { width: 100%; padding: 12px; margin: 3px 0; background: #4a4a4a; color: white; border: none; border-radius: 5px; font-size: 1rem; cursor: pointer; touch-action: manipulation; }
@@ -69,7 +168,20 @@ button:active { filter: brightness(0.8); transform: translateY(1px); }
 .button-row { display: flex; gap: 10px; margin-bottom: 5px; }
 .button-row-vertical { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
 
+/* 禁用樣式：完全無法點擊 */
 .btn-disabled { background-color: #333 !important; color: #777 !important; border: 1px dashed #555 !important; cursor: not-allowed; pointer-events: none; }
+
+/* 偽裝禁用樣式：看起來像 disabled，但可以點擊 */
+.fake-disabled { 
+    background-color: #333 !important; 
+    color: #777 !important; 
+    border: 1px dashed #555 !important; 
+    cursor: not-allowed; /* 滑鼠游標變成禁止符號 */
+    /* 重點：不加 pointer-events: none，所以可以點 */
+}
+/* 點擊時不要有明顯變化，保持神秘感 */
+.fake-disabled:active { transform: none; filter: none; }
+
 .btn-trade { background-color: #e67e22; }
 .btn-forge { background-color: #8e44ad; }
 .btn-attack { background-color: #c0392b; }
@@ -81,10 +193,9 @@ button:active { filter: brightness(0.8); transform: translateY(1px); }
 
 @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(52, 152, 219, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(52, 152, 219, 0); } 100% { box-shadow: 0 0 0 0 rgba(52, 152, 219, 0); } }
 
-.modal { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 100; display: flex; justify-content: center; align-items: center; padding: 20px; }
-.modal-content { background: #333; width: 100%; height: 80%; border-radius: 8px; border: 1px solid #666; display: flex; flex-direction: column; padding: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+.modal-content { background: #333; width: 100%; max-height: 85%; border-radius: 8px; border: 1px solid #666; display: flex; flex-direction: column; padding: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.5); overflow: hidden; }
 .small-modal { height: auto; max-height: 70%; }
-.modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #555; padding-bottom: 8px; margin-bottom: 8px; font-weight: bold; font-size: 1.1rem; }
+.modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #555; padding-bottom: 8px; margin-bottom: 8px; font-weight: bold; font-size: 1.1rem; flex-shrink: 0; }
 button.close-btn { width: auto; margin: 0; padding: 2px 10px; background: #c0392b; font-size: 0.9rem; }
 
 .inventory-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; overflow-y: auto; padding: 5px; flex-grow: 1; align-content: flex-start; }

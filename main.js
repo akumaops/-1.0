@@ -58,7 +58,75 @@ function showToast(title, name) {
 }
 
 // ==========================================
-// 2. 介面開關與場景控制 (SCENE & UI)
+// 2. 存檔系統 (SAVE / LOAD)
+// ==========================================
+
+function saveGame() {
+    if (typeof player === 'undefined') return;
+    // 每次存檔時，同步 meta 資料確保圖鑑最新
+    saveMetaData();
+    player.unlockedCollection = meta.col; 
+    player.unlockedAchievements = meta.ach;
+    localStorage.setItem('fusheng_save_v2', JSON.stringify(player));
+}
+
+function loadAndStart() {
+    const saveStr = localStorage.getItem('fusheng_save_v2');
+    if (!saveStr) {
+        alert("找不到存檔！");
+        return;
+    }
+    try {
+        const saveData = JSON.parse(saveStr);
+        player = saveData;
+        
+        // 確保 meta 資料同步
+        meta.col = player.unlockedCollection || [];
+        meta.ach = player.unlockedAchievements || [];
+        
+        // 兼容性檢查
+        if (typeof player.emeiFloor === 'undefined') {
+            player.emeiFloor = player.floor || 1;
+            player.emeiMaxFloor = player.maxFloor || 1;
+            player.towerFloor = player.floor || 1;
+            player.towerMaxFloor = player.maxFloor || 1;
+        }
+        // 確保神秘之書旗標存在
+        if (typeof player.mysteryTriggered === 'undefined') player.mysteryTriggered = false;
+
+        playBlinkEffect(() => {
+            addClass('scene-start');
+            addClass('scene-origin');
+            removeClass('scene-game');
+            
+            // 恢復地點狀態
+            if (player.location === 'emei') {
+                player.floor = player.emeiFloor;
+                player.maxFloor = player.emeiMaxFloor;
+            } else if (player.location === 'tower') {
+                player.floor = player.towerFloor;
+                player.maxFloor = player.towerMaxFloor;
+            }
+
+            updateUI();
+            updateMainDisplay("📂", "讀取進度成功，歡迎回來。");
+            addToLog("讀取存檔成功。");
+        });
+    } catch (e) {
+        console.error(e);
+        alert("存檔損毀，無法讀取。");
+    }
+}
+
+// 檢查存檔按鈕
+setTimeout(() => {
+    if (localStorage.getItem('fusheng_save_v2')) {
+        removeClass('load-btn');
+    }
+}, 100);
+
+// ==========================================
+// 3. 介面開關與場景控制
 // ==========================================
 
 function toggleLog() { toggleClass('log-modal'); }
@@ -73,6 +141,7 @@ function closeEquip() { addClass('equip-modal'); }
 
 function openBag() { 
     removeClass('bag-modal'); 
+    // 預設切換到裝備分頁，或者保持上次
     if(typeof renderBagGrid === 'function') renderBagGrid(); 
 }
 function closeBag() { addClass('bag-modal'); }
@@ -110,16 +179,20 @@ function openFloorSelector() {
 }
 function closeFloorSelector() { addClass('floor-modal'); }
 
-function closeItemDetail() { addClass('item-detail-modal'); }
+function closeItemDetail() { 
+    addClass('item-detail-modal'); 
+    getEl('trade-qty').value = 1;
+    addClass('qty-selector');
+}
 function closeSelector() { addClass('selector-modal'); }
 
-// 退出與死亡相關
 function askQuit() { removeClass('confirm-modal'); }
 function closeConfirm() { addClass('confirm-modal'); }
 
 function confirmQuit() { 
+    saveGame(); 
     closeConfirm(); 
-    backToTitle(); // 呼叫回標題
+    backToTitle(); 
 }
 
 function checkDeath() { 
@@ -128,10 +201,10 @@ function checkDeath() {
         updateUI(); 
         getEl('death-msg').innerText = `享年 ${player.year} 歲，死於 ${player.location}。`; 
         removeClass('death-modal'); 
+        // 死亡不清除 Meta Data，保留圖鑑
     } 
 }
 
-// ★★★ 這裡補上了 backToTitle ★★★
 function backToTitle() { 
     playBlinkEffect(() => { 
         addClass('death-modal'); 
@@ -143,29 +216,32 @@ function backToTitle() {
         if(karmaFill) karmaFill.style.width = '0%'; 
         
         removeClass('scene-start'); 
+        if (localStorage.getItem('fusheng_save_v2')) removeClass('load-btn');
     }); 
 }
 
 // ==========================================
-// 3. 遊戲資料庫 (DATA)
+// 4. 遊戲資料庫 (DATA)
 // ==========================================
 
-setTimeout(() => {
-    const titleEl = document.querySelector('.title-box h1');
-    if(titleEl) titleEl.innerText = "🗡️ 浮生劍影 🛡️";
-}, 50);
-
+// Meta Data 處理 (永久保存)
 function loadMetaData() {
     try {
         const data = localStorage.getItem('fusheng_meta_v1');
-        return data ? JSON.parse(data) : { col: [], ach: ["ach_first_blood"] };
-    } catch(e) { return { col: [], ach: ["ach_first_blood"] }; }
+        return data ? JSON.parse(data) : { col: [], ach: [] };
+    } catch(e) { return { col: [], ach: [] }; }
 }
 function saveMetaData() {
-    if(typeof player === 'undefined') return;
-    const data = { col: player.unlockedCollection, ach: player.unlockedAchievements };
+    // 將當前解鎖狀態寫入 Meta
+    if(typeof player !== 'undefined') {
+        meta.col = [...new Set([...meta.col, ...player.unlockedCollection])];
+        meta.ach = [...new Set([...meta.ach, ...player.unlockedAchievements])];
+    }
+    const data = { col: meta.col, ach: meta.ach };
     localStorage.setItem('fusheng_meta_v1', JSON.stringify(data));
 }
+
+// 初始化 Meta
 const meta = loadMetaData();
 
 const immortalRanks = ["煉氣", "築基", "結丹", "元嬰", "化神", "煉虛", "合體", "大乘", "真仙", "金仙", "太乙"];
@@ -208,6 +284,10 @@ const itemDB = {
     "pill_exp":   { name: "大還丹", category: "use", type: "use", rarity: "gold", price: 2000, emoji: "🟠", desc: "修為 +50。", useFunc: (p) => { let t = (p.location==='tower')?p.devil:p.immortal; t.exp+=50; return "修為 +50"; } },
     "pill_antidote": { name: "解毒丹", category: "use", type: "use", rarity: "blue", price: 50, emoji: "🍵", desc: "解除中毒(未實裝)。", useFunc: (p) => { return "解毒成功"; } },
     "herb_heal":  { name: "止血草", category: "use", type: "use", rarity: "gray", price: 5, emoji: "🌿", desc: "HP +10。", useFunc: (p) => { p.hp += 10; return "HP +10"; } },
+    
+    // 神秘之書：分類設為 special
+    "book_porn":  { name: "神秘之書", category: "special", type: "special", rarity: "gold", price: 500, emoji: "📖", desc: "畫著一絲不掛的女人...?", useFunc: (p) => { p.hp = 0; checkDeath(); return "你翻開了書，鼻血狂噴，精盡人亡..."; } },
+    
     "mat_iron":   { name: "鐵礦", category: "material", type: "material", rarity: "gray", price: 10, emoji: "🪨", desc: "鍛造基礎。" },
     "mat_bristle":{ name: "堅硬鬃毛", category: "material", type: "material", rarity: "blue", price: 50, emoji: "🖌️", desc: "野豬硬毛。" },
     "mat_poison": { name: "毒囊", category: "material", type: "material", rarity: "blue", price: 60, emoji: "🤢", desc: "充滿毒液。" },
@@ -364,7 +444,7 @@ const achievementDB = [
 ];
 
 // ==========================================
-// 4. 全域變數 (VARIABLES)
+// 5. 全域變數 (VARIABLES)
 // ==========================================
 
 let player = {
@@ -376,23 +456,30 @@ let player = {
     karma: 0, money: 0, rank: "凡人", job: "未定",
     year: 1, month: 1, location: "home", state: "normal",
     bag: [], 
+    // 初始載入 meta 中的資料，確保全鎖定但永久保存
     unlockedCollection: meta.col, 
     unlockedAchievements: meta.ach,
     equipment: { head: null, hand: null, body: null, acc: null, feet: null },
     recipes: [],
-    floor: 1, maxFloor: 1, floorKills: 0,
+    floor: 1, maxFloor: 1, 
+    emeiFloor: 1, emeiMaxFloor: 1,
+    towerFloor: 1, towerMaxFloor: 1,
+    floorKills: 0,
     cultivateCount: 0, restCount: 0,
     killedEmeiBoss: false, killedTowerBoss: false, dreamTriggered: false,
-    shopStock: []
+    shopStock: [],
+    // 新增：追蹤神秘之書是否已觸發
+    mysteryTriggered: false
 };
 
 let currentEnemy = { hp: 100, maxHp: 100, atk: 10, name: "敵人", drop: null, exp: 0 };
 let currentBagTab = 'equip';
 let currentColTab = 'hand';
 let currentShopTab = 'buy';
+let clickCountHomeLeft = 0; // 隱藏按鈕計數
 
 // ==========================================
-// 5. 核心功能 (CORE LOGIC)
+// 6. 核心功能 (CORE LOGIC)
 // ==========================================
 
 function findItem(poolType) {
@@ -408,6 +495,7 @@ function findItem(poolType) {
     updateUI();
     addClass('event-modal');
     addToLog(`🎁 你獲得了：${item.emoji} ${item.name}`);
+    saveGame(); 
 }
 
 function triggerEvent(location) {
@@ -434,6 +522,7 @@ function triggerEvent(location) {
             opt.effect();
             addClass('event-modal');
             updateUI();
+            saveGame(); 
         };
         optDiv.appendChild(btn);
     });
@@ -454,15 +543,17 @@ function passTime() {
         addToLog("🛒 城鎮交易所進了新貨。");
     }
     updateUI();
+    saveGame(); 
 }
 
 function addToBag(itemId, count = 1) {
     let itemDef = itemDB[itemId];
     if (!itemDef) return;
 
+    // 圖鑑解鎖邏輯：只有獲得時才解鎖，並寫入 meta
     if (!player.unlockedCollection.includes(itemId)) {
         player.unlockedCollection.push(itemId);
-        saveMetaData();
+        saveMetaData(); // 立即保存 meta
     }
 
     if (itemDef.category === 'equip') {
@@ -551,7 +642,7 @@ function checkAchievements() {
 }
 
 // ==========================================
-// 6. 遊戲流程 (GAMEPLAY)
+// 7. 遊戲流程 (GAMEPLAY)
 // ==========================================
 
 function enterJianghu() {
@@ -559,18 +650,29 @@ function enterJianghu() {
         addClass('scene-start');
         removeClass('scene-origin');
         
+        // 確保 meta 已讀取
+        const freshMeta = loadMetaData();
+
         player.money = 0; player.year = 1; player.month = 1;
         player.location = "home"; player.state = "normal";
         player.immortal = { exp: 0, max: 50, tier: 0, name: "煉氣 (一階)" };
         player.devil = { exp: 0, max: 50, tier: 0, name: "煉體 (一階)" };
         player.cultivateCount = 0; player.restCount = 0;
         player.recipes = []; 
-        player.floor = 1; player.maxFloor = 1; player.floorKills = 0;
+        player.emeiFloor = 1; player.emeiMaxFloor = 1;
+        player.towerFloor = 1; player.towerMaxFloor = 1;
+        player.floor = 1; player.maxFloor = 1;
+        player.floorKills = 0;
         player.killedEmeiBoss = false; player.killedTowerBoss = false; player.dreamTriggered = false;
         
+        // 重置神秘之書旗標與計數
+        player.mysteryTriggered = false;
+        clickCountHomeLeft = 0;
+        
         player.bag = []; 
-        player.unlockedCollection = meta.col; 
-        player.unlockedAchievements = meta.ach;
+        // 載入全域解鎖紀錄
+        player.unlockedCollection = freshMeta.col; 
+        player.unlockedAchievements = freshMeta.ach;
         player.equipment = { head: null, hand: null, body: null, acc: null, feet: null };
         
         addToBag("weapon_001", 1);
@@ -641,6 +743,7 @@ function startGame(selectedJob) {
         getEl('log-content').innerHTML = '';
         
         travelTo('home');
+        saveGame();
     });
 }
 
@@ -683,8 +786,10 @@ function updateUI() {
     
     if (player.location === 'emei' || player.location === 'tower') {
         removeClass('tower-progress');
-        getEl('floor-val').innerText = player.floor;
-        getEl('max-floor-val').innerText = player.maxFloor;
+        let currentFloor = (player.location === 'emei') ? player.emeiFloor : player.towerFloor;
+        let currentMax = (player.location === 'emei') ? player.emeiMaxFloor : player.towerMaxFloor;
+        getEl('floor-val').innerText = currentFloor;
+        getEl('max-floor-val').innerText = currentMax;
         getEl('kill-val').innerText = player.floorKills;
         updateActionButtons(); 
     } else {
@@ -730,9 +835,9 @@ function cultivate(type) {
     let multiplier = 1.0;
     if (player.karma > 10) { 
         if (type === 'immortal') multiplier = 1.2; 
-        if (type === 'devil') multiplier = 0.7;    
+        if (type === 'devil') multiplier = 0.7;      
     } else if (player.karma < -10) { 
-        if (type === 'devil') multiplier = 1.2;    
+        if (type === 'devil') multiplier = 1.2;      
         if (type === 'immortal') multiplier = 0.7; 
     }
     gain = Math.floor(gain * multiplier);
@@ -771,6 +876,7 @@ function startCombat() {
     
     let pool = [];
     let enemyIndex = 0;
+    let currentFloor = (player.location === 'emei') ? player.emeiFloor : player.towerFloor;
     
     if (player.location === 'tower') {
         pool = enemiesTower;
@@ -783,11 +889,11 @@ function startCombat() {
     if (player.location === 'home' || player.location === 'town') {
         enemyIndex = 0;
     } else {
-        if (player.floor >= 100) {
+        if (currentFloor >= 100) {
             enemyIndex = 24; 
             removeClass('boss-overlay');
         } else {
-            enemyIndex = Math.floor((player.floor - 1) / 4);
+            enemyIndex = Math.floor((currentFloor - 1) / 4);
             if (enemyIndex > 23) enemyIndex = 23;
         }
     }
@@ -796,7 +902,7 @@ function startCombat() {
     let baseEnemy = pool[enemyIndex];
     if (!baseEnemy) baseEnemy = enemiesTower[0]; 
 
-    let scale = 1 + (player.floor * 0.1); 
+    let scale = 1 + (currentFloor * 0.1); 
     
     currentEnemy = { 
         ...baseEnemy, 
@@ -805,7 +911,7 @@ function startCombat() {
         atk: Math.floor(baseEnemy.atk * scale)
     };
     
-    updateMainDisplay("👹", `遭遇 ${currentEnemy.name} (Lv.${player.floor})！`); 
+    updateMainDisplay("👹", `遭遇 ${currentEnemy.name} (Lv.${currentFloor})！`); 
     updateActionButtons(); 
     updateUI();
 }
@@ -828,7 +934,8 @@ function combatAttack() {
         let lootMoney = Math.floor(currentEnemy.exp * 1.5);
         player.money += lootMoney;
         
-        if (player.floor === 100) {
+        let currentFloor = (player.location === 'emei') ? player.emeiFloor : player.towerFloor;
+        if (currentFloor === 100) {
             if (player.location === 'emei') player.killedEmeiBoss = true;
             if (player.location === 'tower') player.killedTowerBoss = true;
             checkAchievements();
@@ -855,11 +962,13 @@ function combatAttack() {
         checkDeath();
     }
     updateUI(); 
+    saveGame(); 
 }
 
 function combatBribe() {
     passTime();
-    let bribeCost = 50 * player.floor; 
+    let currentFloor = (player.location === 'emei') ? player.emeiFloor : player.towerFloor;
+    let bribeCost = 50 * currentFloor; 
     if (player.money >= bribeCost) {
         player.money -= bribeCost;
         player.state = "normal";
@@ -885,11 +994,19 @@ function combatFlee() {
 
 function climbTower() {
     if (player.floorKills >= 5) {
-        player.floor++;
-        if (player.floor > player.maxFloor) player.maxFloor = player.floor;
+        let isEmei = (player.location === 'emei');
+        if (isEmei) {
+            player.emeiFloor++;
+            if (player.emeiFloor > player.emeiMaxFloor) player.emeiMaxFloor = player.emeiFloor;
+        } else {
+            player.towerFloor++;
+            if (player.towerFloor > player.towerMaxFloor) player.towerMaxFloor = player.towerFloor;
+        }
+        
         player.floorKills = 0;
         playBlinkEffect(() => {
-            updateMainDisplay("🧗", `你攀登到了第 ${player.floor} 層！`);
+            let currentFloor = isEmei ? player.emeiFloor : player.towerFloor;
+            updateMainDisplay("🧗", `你攀登到了第 ${currentFloor} 層！`);
             updateActionButtons();
             updateUI();
         });
@@ -900,11 +1017,22 @@ function climbTower() {
 
 function confirmFloor() {
     let val = parseInt(getEl('floor-input').value);
-    if (val >= 1 && val <= player.maxFloor) {
-        player.floor = val;
+    let currentMax = (player.location === 'emei') ? player.emeiMaxFloor : player.towerMaxFloor;
+    
+    if (val >= 1 && val <= currentMax) {
+        if (player.location === 'emei') player.emeiFloor = val;
+        else player.towerFloor = val;
+        
         player.floorKills = 0; 
+        
+        if (player.state === 'combat') {
+             player.state = "normal";
+             addClass('boss-overlay');
+             addToLog("你趁亂溜到了其他樓層。");
+        }
+        
         closeFloorSelector();
-        updateMainDisplay("🪜", `你來到了第 ${player.floor} 層。`);
+        updateMainDisplay("🪜", `你來到了第 ${val} 層。`);
         updateUI();
     } else {
         alert("無效的層數！");
@@ -979,13 +1107,28 @@ function buyItem(itemId) {
     }
 }
 
-function sellItem(itemId, uuid, price) {
-    removeFromBag(itemId, 1, uuid);
-    player.money += price;
+function sellItem(itemId, uuid, unitPrice) {
+    let qtyInput = getEl('trade-qty');
+    let qty = parseInt(qtyInput.value) || 1;
+    let ownCount = getBagCount(itemId); 
+    
+    if (uuid) {
+        removeFromBag(itemId, 1, uuid);
+        player.money += unitPrice;
+        alert(`出售了 ${itemDB[itemId].name}，獲得 ${unitPrice} 靈石。`);
+    } else {
+        if (qty > ownCount) qty = ownCount;
+        if (qty <= 0) return;
+        
+        removeFromBag(itemId, qty);
+        let totalPrice = unitPrice * qty;
+        player.money += totalPrice;
+        alert(`出售了 ${qty} 個 ${itemDB[itemId].name}，獲得 ${totalPrice} 靈石。`);
+    }
+    
     updateUI();
     closeItemDetail();
     renderShopGrid(); 
-    alert(`出售了 ${itemDB[itemId].name}，獲得 ${price} 靈石。`);
 }
 
 function switchBagTab(tab, btn) { 
@@ -999,6 +1142,7 @@ function renderBagGrid() {
     const grid = getEl('bag-grid'); grid.innerHTML = "";
     player.bag.forEach((bagItem) => {
         let item = itemDB[bagItem.id];
+        // 加入分類過濾 (special 也是其中一類)
         if (item && item.category === currentBagTab) {
             let div = document.createElement('div'); 
             div.className = `grid-item q-${item.rarity || 'gray'}`; 
@@ -1040,6 +1184,8 @@ function showItemDetail(itemId, uuid, source) {
     let item = itemDB[itemId];
     getEl('item-name').innerText = `${item.emoji} ${item.name}`;
     getEl('item-desc').innerText = item.desc;
+    getEl('item-category-box').innerText = `${item.category.toUpperCase()} | ${item.type}`;
+    
     let statsText = ""; 
     if (item.atk) statsText += `攻+${item.atk} `; 
     if (item.hp) statsText += `血+${item.hp} `;
@@ -1048,6 +1194,8 @@ function showItemDetail(itemId, uuid, source) {
     
     let priceDisplay = getEl('item-price');
     priceDisplay.innerText = "";
+    
+    addClass('qty-selector'); 
 
     const btn = getEl('btn-item-action');
     btn.onclick = null; 
@@ -1066,7 +1214,7 @@ function showItemDetail(itemId, uuid, source) {
         let val = Math.floor(item.price / 2);
         priceDisplay.innerText = `販賣價值: ${val}`;
         
-        if (item.category === 'use') { 
+        if (item.category === 'use' || item.category === 'special') { 
             btn.innerText = "使用"; 
             btn.style.backgroundColor = "#2980b9"; 
             btn.onclick = () => useItem(itemId); 
@@ -1086,7 +1234,16 @@ function showItemDetail(itemId, uuid, source) {
     }
     else if (source === "shop_sell") {
         let val = Math.floor(item.price / 2);
-        priceDisplay.innerText = `販賣價格: ${val}`;
+        priceDisplay.innerText = `單價: ${val}`;
+        
+        if (item.category !== 'equip') {
+            removeClass('qty-selector');
+            let maxQty = getBagCount(itemId);
+            let qtyInput = getEl('trade-qty');
+            qtyInput.max = maxQty;
+            qtyInput.value = 1;
+        }
+
         btn.innerText = "販賣";
         btn.style.backgroundColor = "#c0392b";
         btn.onclick = () => sellItem(itemId, uuid, val);
@@ -1099,10 +1256,15 @@ function useItem(itemId) {
     let item = itemDB[itemId];
     if (item.useFunc) {
         let msg = item.useFunc(player);
-        removeFromBag(itemId, 1);
-        updateUI(); closeItemDetail(); 
-        renderBagGrid(); 
-        alert(`使用了 ${item.name}：${msg}`);
+        if (itemId !== 'book_porn') { 
+            removeFromBag(itemId, 1);
+            updateUI(); 
+            closeItemDetail(); 
+            renderBagGrid(); 
+            alert(`使用了 ${item.name}：${msg}`);
+        } else {
+             closeItemDetail();
+        }
     }
 }
 
@@ -1171,18 +1333,51 @@ function craftItem(rId) {
 }
 
 function updateActionButtons() {
-    const btnLeft = getEl('btn-action-left'); const btnRight = getEl('btn-action-right'); const btnMain = getEl('btn-action-main'); 
-    if ((player.location === 'emei' || player.location === 'tower') && player.state !== 'combat') removeClass('btn-floor-select'); else addClass('btn-floor-select');
+    const btnLeft = getEl('btn-action-left'); 
+    const btnRight = getEl('btn-action-right'); 
+    const btnMain = getEl('btn-action-main'); 
+    
+    // [修改] 徹底隱藏層數選擇按鈕，只在戰鬥中或特殊需求下透過 JS 呼叫 openFloorSelector()
+    addClass('btn-floor-select'); 
+    
     btnLeft.className = ''; btnRight.className = ''; btnMain.className = '';
     
     if (player.state === 'combat') {
         if (player.job === '巨賈') { btnLeft.innerText = "💰 賄賂"; btnLeft.onclick = () => combatBribe(); btnLeft.className = "btn-bribe"; } 
         else { btnLeft.innerText = "⚔️ 攻擊"; btnLeft.onclick = () => combatAttack(); btnLeft.className = "btn-attack"; }
+        
         btnRight.innerText = "🏃 逃跑"; btnRight.onclick = () => combatFlee(); btnRight.className = "btn-flee";
-        btnMain.innerText = "防禦 (跳過)"; btnMain.onclick = () => passTime();
+        
+        // 戰鬥中允許選擇層數（變相撤退/換層）
+        btnMain.innerText = "🔢 選擇層數"; 
+        btnMain.className = "btn-info";
+        btnMain.onclick = () => openFloorSelector();
     } else {
         btnLeft.className = "btn-disabled"; btnRight.className = "btn-disabled"; btnLeft.onclick = null; btnRight.onclick = null;
-        if (player.location === 'home') { btnLeft.innerText = "..."; btnRight.innerText = "..."; btnMain.innerText = "🛏️ 休息"; btnMain.onclick = () => actionRest(); } 
+        if (player.location === 'home') { 
+            btnLeft.innerText = "..."; 
+            
+            // [新增] 神秘按鈕邏輯：點擊 10 次獲得神秘之書 (一局一次)
+            btnLeft.onclick = () => {
+                clickCountHomeLeft++;
+                if (clickCountHomeLeft >= 10) {
+                     if (!player.mysteryTriggered) {
+                         player.mysteryTriggered = true;
+                         addToBag('book_porn', 1);
+                         alert("......\n(你在床底發現了一本髒髒的書，已放入背包)");
+                         saveGame();
+                     } else {
+                         // 如果已經拿過了
+                         addToLog("... (這裡已經什麼都沒有了)");
+                     }
+                }
+            };
+            // 使用 fake-disabled class 讓它看起來不能按，但可以按
+            btnLeft.className = "fake-disabled"; 
+            
+            btnRight.innerText = "..."; 
+            btnMain.innerText = "🛏️ 休息"; btnMain.onclick = () => actionRest(); 
+        } 
         else if (player.location === 'town') { 
             btnLeft.innerText = "⚖️ 交易"; btnLeft.className = "btn-trade"; btnLeft.onclick = () => openShop(); 
             btnRight.innerText = "🔥 鍛造"; btnRight.className = "btn-forge"; btnRight.onclick = () => openForge(); 
@@ -1191,14 +1386,23 @@ function updateActionButtons() {
         else if (player.location === 'emei') { 
             btnLeft.innerText = "⚔️ 挑戰眾神"; btnLeft.onclick = () => startCombat(); btnLeft.className = "btn-attack"; 
             btnRight.innerText = `仙: ${player.immortal.exp}/${player.immortal.max}`; btnRight.className = "btn-info"; btnRight.onclick = () => alert(`【${player.immortal.name}】`); 
-            if (player.floorKills >= 5) { btnMain.innerText = "⏫ 前往下一層"; btnMain.className = "btn-next-floor"; btnMain.onclick = () => climbTower(); } 
-            else { btnMain.innerText = "🧘 修仙"; btnMain.className = "btn-cultivate"; btnMain.onclick = () => cultivate('immortal'); }
+            
+            // 這裡直接判斷是否爬塔，移除選擇層數按鈕
+            if (player.floorKills >= 5) { 
+                btnMain.innerText = "⏫ 前往下一層"; btnMain.className = "btn-next-floor"; btnMain.onclick = () => climbTower(); 
+            } else { 
+                btnMain.innerText = "🧘 修仙"; btnMain.className = "btn-cultivate"; btnMain.onclick = () => cultivate('immortal'); 
+            }
         }
         else if (player.location === 'tower') { 
             btnLeft.innerText = "🏯 挑戰封魔塔"; btnLeft.onclick = () => startCombat(); btnLeft.className = "btn-attack"; 
             btnRight.innerText = `魔: ${player.devil.exp}/${player.devil.max}`; btnRight.className = "btn-info"; btnRight.onclick = () => alert(`【${player.devil.name}】`); 
-            if (player.floorKills >= 5) { btnMain.innerText = "⏬ 前往下一層"; btnMain.className = "btn-next-floor"; btnMain.onclick = () => climbTower(); } 
-            else { btnMain.innerText = "😈 修魔"; btnMain.className = "btn-cultivate"; btnMain.onclick = () => cultivate('devil'); }
+            
+            if (player.floorKills >= 5) { 
+                btnMain.innerText = "⏬ 前往下一層"; btnMain.className = "btn-next-floor"; btnMain.onclick = () => climbTower(); 
+            } else { 
+                btnMain.innerText = "😈 修魔"; btnMain.className = "btn-cultivate"; btnMain.onclick = () => cultivate('devil'); 
+            }
         }
     }
 }
@@ -1240,8 +1444,27 @@ function actionWander() {
 }
 
 function travelTo(p) { 
-    closeMap(); passTime(); player.location = p; player.state = "normal"; 
-    let e="❓",t=""; if(p==='home'){e="🏠";t="回家";} if(p==='town'){e="🏰";t="進城";} if(p==='emei'){e="🏔️";t="峨眉";} if(p==='tower'){e="🗼";t="封魔";} 
+    closeMap(); 
+    passTime(); 
+    player.location = p; 
+    player.state = "normal"; 
+    
+    if (p === 'emei') {
+        player.floor = player.emeiFloor;
+        player.maxFloor = player.emeiMaxFloor;
+    } else if (p === 'tower') {
+        player.floor = player.towerFloor;
+        player.maxFloor = player.towerMaxFloor;
+    }
+
+    let e="❓",t=""; 
+    if(p==='home'){e="🏠";t="回家";} 
+    if(p==='town'){e="🏰";t="進城";} 
+    if(p==='emei'){e="🏔️";t="峨眉";} 
+    if(p==='tower'){e="🗼";t="封魔";} 
+    
+    clickCountHomeLeft = 0;
+
     updateMainDisplay(e,t); updateActionButtons(); updateUI();
 }
 
